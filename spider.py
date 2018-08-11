@@ -74,11 +74,15 @@ class BDTB:
         if result:
             #如果存在，则返回标题
             self.title=result.group(1).strip()
+            self.getPostTitle(self.title)
             return self.title
         else:
             self.title=None
             return None
 
+    def getPostTitle(self,t):
+        pass
+    
     #获取帖子一共有多少页
     def getPageNum(self,page):
         #获取帖子页数的正则表达式
@@ -115,6 +119,9 @@ class BDTB:
         for item in contents:
             self.getPost(item)
 
+    def finished(self):
+        pass
+
     def start(self):
         indexPage = self.getPage(1)
         pageNum = self.getPageNum(indexPage)
@@ -135,6 +142,7 @@ class BDTB:
             print "写入异常，原因" + e.message
         finally:
             print "写入任务完成"
+        self.finished()
 
 if __name__ == '__main__':
     print u"请输入帖子代号"

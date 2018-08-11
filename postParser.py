@@ -1,5 +1,7 @@
 # -*- coding:utf-8 -*-
 import spider
+import os
+from ctypes import * 
 
 class parser(spider.BDTB):
     def __init__(self,baseUrl,seeLZ):
@@ -8,32 +10,58 @@ class parser(spider.BDTB):
         self.rawid=1
         #上一选项贴标记
         self.lastSelection=None
+        self.native=cdll.LoadLibrary(os.getcwd() + '/parser.so')
+        self.native.load()
+        
+    def __del__(self):
+        self.native.quit()
     
     #########################
     #use AI begin
     #是正确答案
     def isTrue(self,raw):
-        pass
+        if not raw :
+            return False
+        return (self.native.parser_isTrue(raw)!=0)
+    
     #是选项
     def isSelection(self,raw):
-        pass
+        if not raw :
+            return False
+        return (self.native.parser_isSelection(raw)>0)
+        
     #获取行号
     def getSelectionId(self,raw):
-        pass
+        if not raw :
+            return False
+        p = create_string_buffer(64)
+        self.native.parser_getSelectionId(raw,p,64)
+        
     #use AI end
     #########################
 
     #############################
     #IO begin
+    
+    #表示获取到了新的帖子
+    def getNewPost(self):
+        pass
+    
     #内容，行号
     def contentAppend(self,raw,num):
-        pass
+        self.file.write(str(num)+".Text: "+str(raw)+"\n")
+    
     #内容，行号
     def questionAppend(self,raw,num):
-        pass
+        self.file.write(str(num)+".Question: "+str(raw)+"\n")
+    
     #内容，行号，回答行号，是否继续
     def answerAppend(self,raw,num,ansnum,resuming):
-        pass
+        self.file.write(str(num)+".Re:"+str(ansnum)+": "+str(raw))
+        if resuming :
+            self.file.write("\n")
+        else:
+            self.file.write("<stop>\n")
     #IO end
     #############################
     
@@ -44,6 +72,8 @@ class parser(spider.BDTB):
         #为空
         if post == None:
             return
+        self.getNewPost()
+        
         #按行读取
         raws=post.splitlines()
         
@@ -51,6 +81,8 @@ class parser(spider.BDTB):
         #即此贴可能是问题
         if self.lastSelection==None:
             for raw in raws:
+                if len(raw)==0:
+                    continue
                 #如果是选项
                 if self.isSelection(raw):
                     id=self.getSelectionId(raw)
@@ -70,10 +102,13 @@ class parser(spider.BDTB):
             selectText=""
             selectAnsId=None
             for raw in raws:
+                if len(raw)==0:
+                    continue
                 #如果是选项
                 if self.isSelection(raw):
                     if selectFlag:
                         self.answerAppend(self , selectText , self.rawid , self.lastSelection[selectAnsId] , self.canResume(selectText))
+                        self.rawid=self.rawid+1
                         selectText=""
                         selectAnsId=None
                     selectFlag=True
@@ -81,7 +116,7 @@ class parser(spider.BDTB):
                     selectText=raw
                 else:
                     if selectFlag:
-                        selectText+="<br>"
+                        selectText+="\n"
                         selectText+=raw
                     else:
                         self.contentAppend(raw,self.rawid)
